@@ -1,0 +1,37 @@
+# Environment files - NEVER commit these
+.env
+*.env
+.env.local
+.env.production
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# ML model files (large, auto-downloaded)
+backend/ml_models/*.joblib
+backend/ml_models/*.pt
+backend/ml_models/*.bin
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Logs
+*.log
+logs/
