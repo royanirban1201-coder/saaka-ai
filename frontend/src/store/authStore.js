@@ -43,7 +43,7 @@ const useAuthStore = create((set, get) => ({
   logout: () => {
     localStorage.removeItem('sakaa_token')
     set({ user: null, token: null })
-    window.location.href = '/login'
+    window.location.href = '/'
   },
 
   isEmployer: () => get().user?.role === 'employer',

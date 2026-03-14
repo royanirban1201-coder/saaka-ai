@@ -1,96 +1,118 @@
+import { useState, useEffect } from 'react'
 import Layout from '../../components/Layout'
-import { useEffect, useState } from 'react'
-import { freelancerAPI } from '../../services/api'
+import { employerAPI } from '../../services/api'
+import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 
-export default function FreelancerWallet() {
-  const [wallet, setWallet] = useState(null)
-  const [loading, setLoading] = useState(true)
+export default function EmployerWallet() {
+  const { user } = useAuthStore()
+  const [balance, setBalance] = useState(0)
+  const [amount, setAmount]   = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const load = () => {
-    freelancerAPI.getWallet().then(r => setWallet(r.data)).finally(() => setLoading(false))
-  }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    employerAPI.getWallet().then(r => setBalance(r.data.balance || 0)).catch(() => {})
+  }, [])
 
-  const transfer = async (contractId) => {
+  const topup = async () => {
+    const amt = parseFloat(amount)
+    if (!amt || amt < 100) { toast.error('Minimum top-up is ₹100'); return }
+    setLoading(true)
     try {
-      const res = await freelancerAPI.transferToBank(contractId)
-      toast.success(res.data.message)
-      load()
+      await employerAPI.topupWallet({ amount: amt, payment_id: 'dev_skip' })
+      setBalance(b => b + amt)
+      setAmount('')
+      useAuthStore.getState().setUser({ ...user, wallet_balance: (user?.wallet_balance || 0) + amt })
+      toast.success(`₹${amt.toLocaleString('en-IN')} added to wallet!`)
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Transfer failed')
+      toast.error(err.response?.data?.detail || 'Top-up failed')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const statusColor = { locked: 'bg-gray-100 text-gray-600', partially_unlocked: 'bg-amber-100 text-amber-700', unlocked: 'bg-green-100 text-green-700', refunded: 'bg-red-100 text-red-700', transferred: 'bg-blue-100 text-blue-700' }
-
   return (
     <Layout>
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Wallet</h1>
-      <p className="text-gray-500 text-sm mb-6">Each project has its own wallet. Funds unlock on completion.</p>
+      <div className="animate-page-enter" style={{ maxWidth: 500 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 28 }}>
+          Wallet
+        </h1>
 
-      {loading ? <p className="text-gray-400">Loading...</p> : (
-        <div className="max-w-2xl">
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            {[
-              ['Total balance', `₹${(wallet?.total_balance || 0).toFixed(0)}`, 'text-gray-900'],
-              ['Locked', `₹${(wallet?.total_locked || 0).toFixed(0)}`, 'text-amber-600'],
-              ['Unlocked', `₹${(wallet?.total_unlocked || 0).toFixed(0)}`, 'text-green-600'],
-            ].map(([l, v, cls]) => (
-              <div key={l} className="bg-white border border-gray-200 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">{l}</p>
-                <p className={`text-xl font-bold ${cls}`}>{v}</p>
-              </div>
-            ))}
+        {/* Balance card */}
+        <div style={{
+          background: 'linear-gradient(135deg,rgba(108,99,255,0.18),rgba(0,212,170,0.1))',
+          border: '1px solid rgba(108,99,255,0.25)', borderRadius: 22, padding: '36px',
+          marginBottom: 20, textAlign: 'center', position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', top: -40, right: -40, width: 200, height: 200,
+            borderRadius: '50%', background: 'radial-gradient(circle,rgba(108,99,255,0.12),transparent 70%)',
+            pointerEvents: 'none'
+          }} />
+          <p style={{ fontSize: 12, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10, fontFamily: 'var(--font-mono)' }}>
+            Available balance
+          </p>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 48, fontWeight: 800, color: 'var(--text1)', textShadow: '0 0 40px rgba(108,99,255,0.3)' }}>
+            ₹{balance.toLocaleString('en-IN')}
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--text3)', marginTop: 10 }}>
+            Funds locked for active contracts are separate
+          </p>
+        </div>
+
+        {/* Top-up form */}
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 18, padding: '24px', marginBottom: 16 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Add funds</h2>
+          <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 18 }}>
+            Demo mode — funds added directly. Wire Razorpay for production.
+          </p>
+
+          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 5, display: 'block', fontFamily: 'var(--font-mono)' }}>
+                Amount (₹)
+              </label>
+              <input
+                type="number"
+                className="input"
+                placeholder="Enter amount"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                min="100"
+                onKeyDown={e => e.key === 'Enter' && topup()}
+              />
+            </div>
+            <div style={{ alignSelf: 'flex-end' }}>
+              <button onClick={topup} disabled={loading || !amount} className="btn-primary" style={{ padding: '10px 24px', fontSize: 14 }}>
+                {loading ? 'Adding...' : 'Add funds'}
+              </button>
+            </div>
           </div>
 
-          <h2 className="font-semibold text-gray-800 mb-3">Per-contract wallets</h2>
-          {wallet?.wallets?.length === 0 ? (
-            <p className="text-sm text-gray-400">No wallet instances yet. Complete a project to earn.</p>
-          ) : (
-            <div className="space-y-3">
-              {wallet?.wallets?.map(w => (
-                <div key={w._id} className="bg-white border border-gray-200 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">Contract wallet</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Total: ₹{w.total_amount?.toFixed(0)}</p>
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[w.status] || 'bg-gray-100 text-gray-600'}`}>
-                      {w.status?.replace('_', ' ')}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm mb-3">
-                    <span className="text-gray-500">Accumulated</span>
-                    <span className="font-medium text-gray-900">₹{w.locked_balance?.toFixed(0)}</span>
-                  </div>
-
-                  {w.status === 'unlocked' && (
-                    <button onClick={() => transfer(w.contract_id)}
-                      className="w-full bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700">
-                      Transfer to bank
-                    </button>
-                  )}
-
-                  {w.transactions?.length > 0 && (
-                    <div className="mt-3 space-y-1">
-                      {w.transactions.slice(-3).map((t, i) => (
-                        <div key={i} className="flex justify-between text-xs text-gray-500">
-                          <span>{t.reason}</span>
-                          <span className={t.type === 'credit' ? 'text-green-600' : 'text-red-600'}>
-                            {t.type === 'credit' ? '+' : '-'}₹{t.amount?.toFixed(0)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Quick amounts */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[500, 1000, 5000, 10000, 25000].map(v => (
+              <button key={v} onClick={() => setAmount(String(v))} style={{
+                padding: '6px 14px', borderRadius: 10, fontSize: 13,
+                background: +amount === v ? 'rgba(108,99,255,0.15)' : 'var(--bg3)',
+                border: `1px solid ${+amount === v ? 'rgba(108,99,255,0.4)' : 'var(--border)'}`,
+                color: +amount === v ? 'var(--primary2)' : 'var(--text3)',
+                cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'var(--font-mono)',
+                boxShadow: +amount === v ? '0 0 10px rgba(108,99,255,0.2)' : 'none',
+              }}>
+                ₹{v.toLocaleString('en-IN')}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
+
+        {/* Info box */}
+        <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 12, padding: '14px 16px' }}>
+          <p style={{ fontSize: 13, color: '#FCD34D', lineHeight: 1.7 }}>
+            ⚠ The full project amount (contract + platform fee + tax) is deducted from your wallet when sending offers. Add enough balance before posting a project.
+          </p>
+        </div>
+      </div>
     </Layout>
   )
 }

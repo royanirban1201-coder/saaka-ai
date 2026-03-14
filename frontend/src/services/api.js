@@ -49,6 +49,7 @@ export const employerAPI = {
   getContracts:       ()       => api.get('/employer/contracts'),
   getWallet:          ()       => api.get('/employer/wallet'),
   topupWallet:        (data)   => api.post('/wallet/topup', data),
+
 }
 
 // ── Freelancer ────────────────────────────────────────
@@ -64,6 +65,9 @@ export const freelancerAPI = {
   setAvailability:    (v)      => api.post('/freelancer/availability', { available: v }),
   getWallet:          ()       => api.get('/wallet/summary'),
   transferToBank:     (cid)    => api.post('/wallet/transfer', { contract_id: cid }),
+  addPortfolioProject: (data) => api.post('/freelancer/portfolio/project', null, { params: data }),
+  getPortfolio:        ()     => api.get('/freelancer/portfolio'),
+  updatePhoto:         (url)  => api.post(`/freelancer/profile/photo?photo_url=${encodeURIComponent(url)}`),
 }
 
 // ── AI Agent ──────────────────────────────────────────
@@ -74,6 +78,7 @@ export const aiAPI = {
   portfolioSummary:   (fid)    => api.get(`/ai/portfolio-summary/${fid}`),
   checkNegotiation:   (cid)    => api.post(`/ai/check-negotiation/${cid}`),
   pfiHistory:         ()       => api.get('/ai/pfi/history'),
+  getChatHistory: (projectId) => api.get(`/ai/chat/history/${projectId}`),
 }
 
 // ── Negotiation ───────────────────────────────────────
